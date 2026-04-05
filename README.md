@@ -103,6 +103,26 @@ This is experimental. 35 actions have been tested end-to-end. 167 have verified 
 
 See the full list in the language reference.
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnerabilities.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute. This is experimental. I appreciate help but want to make sure contributions align with where the project is going.
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/taylorarndt"><img src="https://github.com/taylorarndt.png?size=100" width="100px;" alt="Taylor Arndt"/><br /><sub><b>Taylor Arndt</b></sub></a><br />Creator</td>
+    </tr>
+  </tbody>
+</table>
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
 ## License
 
 MIT
