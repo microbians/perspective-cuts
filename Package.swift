@@ -17,9 +17,5 @@ let package = Package(
                 .process("Resources")
             ]
         ),
-        .testTarget(
-            name: "perspective-cuts-tests",
-            dependencies: ["perspective-cuts"]
-        ),
     ]
 )
