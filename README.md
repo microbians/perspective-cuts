@@ -28,6 +28,8 @@ Other tools existed for writing shortcuts as code. JellyCuts was the main one. B
 
 ## Install
 
+<img src="demos/install.gif" alt="Terminal demo showing Homebrew install, discovering third-party actions, inspecting ChatGPT action parameters with the detail command, and compiling a shortcut" width="800">
+
 ```bash
 brew tap taylorarndt/tap
 brew install perspective-cuts
@@ -93,7 +95,7 @@ showResult(text: answer)
 
 ## CLI
 
-<img src="demos/install.gif" alt="Terminal demo showing Homebrew install, discovering third-party actions, inspecting ChatGPT action parameters with the detail command, and compiling a shortcut" width="800">
+<img src="demos/discover.gif" alt="Terminal demo showing the discover command finding third-party app actions" width="800">
 
 ```bash
 perspective-cuts compile --sign file.perspective    # Compile and sign
