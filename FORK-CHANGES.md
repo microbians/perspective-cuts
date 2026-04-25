@@ -24,6 +24,7 @@ settings had to be configured manually in the Shortcuts app after import.
 | `#menubar: true\|false` | Adds `MenuBar` to `WFWorkflowTypes` | `false` |
 | `#widget: true\|false` | Toggles `NCWidget` in `WFWorkflowTypes` | `true` |
 | `#watch: true\|false` | Toggles `WatchKit` in `WFWorkflowTypes` | `true` |
+| `#noinput: continue\|ask\|clipboard\|cancel` | Sets `WFWorkflowNoInputBehavior` (what to do when run without input) | not set |
 
 When `#sharesheet` or `#quickaction` is enabled, the compiler also sets
 `WFWorkflowHasShortcutInputVariables` to `true` automatically.
@@ -61,9 +62,61 @@ import Shortcuts
 #input: url, text
 #sharesheet: true
 #quickaction: true
+#noinput: clipboard
 
 // ... actions ...
 ```
+
+---
+
+## Bug fixes
+
+### Magic Variables lost on raw `is.workflow.actions.*` calls
+
+When an action was called by raw identifier (e.g.
+`is.workflow.actions.runshellscript(Input: someVar)`) the compiler
+incorrectly took the 3rd-party path because the heuristic for "third
+party" was simply "name contains a dot". That path called
+`expressionToPlainValue` which does not consult the `outputMap`, so any
+variable reference passed in as an argument was serialised as a bare
+string and the resulting shortcut showed disconnected boxes ("no line"
+between the producer and the consumer in Shortcuts.app).
+
+Fix: identifiers in the `is.workflow.actions.` namespace are now treated
+as built-in even when the registry does not know about them. Real 3rd
+party identifiers (e.g. `com.openai.chat.AskIntent`) still take the App
+Intent path.
+
+### Plain-string parameters tokenised on raw built-in calls
+
+Once the previous fix routed raw built-ins through the built-in path, a
+secondary issue surfaced: parameters that must be plain strings
+(`WFVariableName`, `Shell`, `InputMode`, `Script`,
+`WFCommentActionText`, `WFTextActionText`) were being wrapped in a
+`WFTextTokenString` envelope because there is no `ActionParameter`
+definition to tell the compiler their type. Shortcuts.app then displayed
+those fields with the wrong widget.
+
+Fix: `Compiler.appleBuiltinPlainKeys` lists the parameter labels that
+must be emitted as plain values when the action is a raw `is.workflow.actions.*`
+call without a registry entry.
+
+---
+
+## CLI
+
+### `compile --open`
+
+After signing, automatically `open` the resulting `.shortcut` so
+Shortcuts.app picks up the import dialog. Combine with `--sign`:
+
+```bash
+perspective-cuts compile --sign --open my.perspective
+```
+
+For subsequent updates use `--install` (already in upstream) to overwrite
+the existing shortcut in the Shortcuts.app database without going
+through the import dialog again.
 
 ---
 
