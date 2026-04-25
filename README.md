@@ -1,5 +1,7 @@
 # Perspective Cuts
 
+> **Fork notice.** This is a fork of [taylorarndt/perspective-cuts](https://github.com/taylorarndt/perspective-cuts) with extra metadata directives for configuring Share Sheet, Quick Actions, menu bar, widget, watch, and accepted input types directly from `.perspective` source. See [FORK-CHANGES.md](FORK-CHANGES.md) for the full list and examples.
+
 A text-based language for writing Apple Shortcuts. Write code, compile it, get a shortcut. No dragging blocks. No clicking menus. Just text.
 
 <p align="center">
