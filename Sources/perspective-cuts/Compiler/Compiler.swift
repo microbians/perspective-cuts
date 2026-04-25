@@ -38,10 +38,20 @@ struct Compiler: Sendable {
         var iconColor = 463140863 // blue default
         var iconGlyph = 59771 // gear default
 
+        // Workflow surface toggles. Defaults preserve historical behavior:
+        // widget + watch on, no quick action / share sheet / menu bar.
+        var widgetEnabled = true
+        var watchEnabled = true
+        var quickActionEnabled = false
+        var shareSheetEnabled = false
+        var menuBarEnabled = false
+        // nil means "not set" -> use the full default content-class list.
+        var explicitInputClasses: [String]? = nil
+
         for node in nodes {
             switch node {
             case .importStatement: break // handled at validation
-            case .metadata(let key, let value, _):
+            case .metadata(let key, let value, let loc):
                 if key == "color", let color = registry.iconColors[value] {
                     iconColor = color
                 }
@@ -51,6 +61,24 @@ struct Compiler: Sendable {
                 }
                 if key == "name" {
                     shortcutName = value
+                }
+                if key == "input" {
+                    explicitInputClasses = try parseInputDirective(value: value, location: loc)
+                }
+                if key == "quickaction" {
+                    quickActionEnabled = parseBoolDirective(value)
+                }
+                if key == "sharesheet" {
+                    shareSheetEnabled = parseBoolDirective(value)
+                }
+                if key == "menubar" {
+                    menuBarEnabled = parseBoolDirective(value)
+                }
+                if key == "widget" {
+                    widgetEnabled = parseBoolDirective(value)
+                }
+                if key == "watch" {
+                    watchEnabled = parseBoolDirective(value)
                 }
             case .comment(let text, _):
                 actions.append(buildAction(
@@ -282,29 +310,98 @@ struct Compiler: Sendable {
                 "WFWorkflowIconStartColor": iconColor,
                 "WFWorkflowIconGlyphNumber": iconGlyph
             ],
-            "WFWorkflowTypes": ["NCWidget", "WatchKit"],
-            "WFWorkflowInputContentItemClasses": [
-                "WFAppStoreAppContentItem",
-                "WFArticleContentItem",
-                "WFContactContentItem",
-                "WFDateContentItem",
-                "WFEmailAddressContentItem",
-                "WFGenericFileContentItem",
-                "WFImageContentItem",
-                "WFiTunesProductContentItem",
-                "WFLocationContentItem",
-                "WFDCMapsLinkContentItem",
-                "WFAVAssetContentItem",
-                "WFPDFContentItem",
-                "WFPhoneNumberContentItem",
-                "WFRichTextContentItem",
-                "WFSafariWebPageContentItem",
-                "WFStringContentItem",
-                "WFURLContentItem"
-            ],
+            "WFWorkflowTypes": buildWorkflowTypes(
+                widget: widgetEnabled,
+                watch: watchEnabled,
+                quickAction: quickActionEnabled,
+                shareSheet: shareSheetEnabled,
+                menuBar: menuBarEnabled
+            ),
+            "WFWorkflowInputContentItemClasses": explicitInputClasses ?? defaultInputContentClasses,
+            "WFWorkflowHasShortcutInputVariables": (shareSheetEnabled || quickActionEnabled),
             "WFWorkflowActions": actions,
             "WFWorkflowName": shortcutName
         ]
+    }
+
+    private static let defaultInputContentClasses: [String] = [
+        "WFAppStoreAppContentItem",
+        "WFArticleContentItem",
+        "WFContactContentItem",
+        "WFDateContentItem",
+        "WFEmailAddressContentItem",
+        "WFGenericFileContentItem",
+        "WFImageContentItem",
+        "WFiTunesProductContentItem",
+        "WFLocationContentItem",
+        "WFDCMapsLinkContentItem",
+        "WFAVAssetContentItem",
+        "WFPDFContentItem",
+        "WFPhoneNumberContentItem",
+        "WFRichTextContentItem",
+        "WFSafariWebPageContentItem",
+        "WFStringContentItem",
+        "WFURLContentItem"
+    ]
+
+    private var defaultInputContentClasses: [String] { Compiler.defaultInputContentClasses }
+
+    private func buildWorkflowTypes(widget: Bool, watch: Bool, quickAction: Bool, shareSheet: Bool, menuBar: Bool) -> [String] {
+        var types: [String] = []
+        if widget { types.append("NCWidget") }
+        if watch { types.append("WatchKit") }
+        if quickAction { types.append("QuickActionsService") }
+        if shareSheet { types.append("ActionExtension") }
+        if menuBar { types.append("MenuBar") }
+        return types
+    }
+
+    private func parseBoolDirective(_ value: String) -> Bool {
+        let v = value.trimmingCharacters(in: .whitespaces).lowercased()
+        return v == "true" || v == "yes" || v == "1" || v == "on"
+    }
+
+    private func parseInputDirective(value: String, location: SourceLocation) throws -> [String] {
+        let normalized = value.lowercased().split(whereSeparator: { ", ".contains($0) })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        if normalized.isEmpty {
+            throw CompilerError(message: "#input directive needs at least one type (e.g. 'url', 'text', 'any', 'none')", location: location)
+        }
+        if normalized.contains("any") { return Compiler.defaultInputContentClasses }
+        if normalized.contains("none") { return [] }
+
+        let mapping: [String: [String]] = [
+            "url": ["WFURLContentItem", "WFSafariWebPageContentItem"],
+            "text": ["WFStringContentItem", "WFRichTextContentItem"],
+            "string": ["WFStringContentItem"],
+            "richtext": ["WFRichTextContentItem"],
+            "image": ["WFImageContentItem"],
+            "file": ["WFGenericFileContentItem", "WFPDFContentItem"],
+            "pdf": ["WFPDFContentItem"],
+            "media": ["WFAVAssetContentItem"],
+            "contact": ["WFContactContentItem"],
+            "location": ["WFLocationContentItem", "WFDCMapsLinkContentItem"],
+            "date": ["WFDateContentItem"],
+            "email": ["WFEmailAddressContentItem"],
+            "phone": ["WFPhoneNumberContentItem"],
+            "app": ["WFAppStoreAppContentItem", "WFiTunesProductContentItem"],
+            "article": ["WFArticleContentItem"]
+        ]
+
+        var result: [String] = []
+        var seen = Set<String>()
+        for token in normalized {
+            guard let classes = mapping[token] else {
+                let valid = mapping.keys.sorted().joined(separator: ", ")
+                throw CompilerError(message: "Unknown #input type '\(token)'. Valid: any, none, \(valid)", location: location)
+            }
+            for cls in classes where !seen.contains(cls) {
+                seen.insert(cls)
+                result.append(cls)
+            }
+        }
+        return result
     }
 
     // MARK: - Helpers
