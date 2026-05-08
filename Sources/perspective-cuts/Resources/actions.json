@@ -215,6 +215,22 @@
         }
       }
     },
+    "searchWeb": {
+      "identifier": "is.workflow.actions.searchweb",
+      "description": "Search the web (Google, YouTube, etc.)",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "required": true,
+          "key": "WFInputText"
+        },
+        "destination": {
+          "type": "plainString",
+          "required": false,
+          "key": "WFSearchWebDestination"
+        }
+      }
+    },
     "expandURL": {
       "identifier": "is.workflow.actions.url.expand",
       "description": "Expand a shortened URL",
