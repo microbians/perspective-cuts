@@ -359,7 +359,8 @@ struct Compiler: Sendable {
         "InputMode",
         "Script",
         "WFTextActionText",
-        "WFNotificationActionTitle"
+        "WFNotificationActionTitle",
+        "WFContentItemPropertyName"
     ]
 
     private static let defaultInputContentClasses: [String] = [
@@ -462,6 +463,7 @@ struct Compiler: Sendable {
 
         let mapping: [String: [String]] = [
             "url": ["WFURLContentItem", "WFSafariWebPageContentItem"],
+            "webpage": ["WFSafariWebPageContentItem"],
             "text": ["WFStringContentItem", "WFRichTextContentItem"],
             "string": ["WFStringContentItem"],
             "richtext": ["WFRichTextContentItem"],

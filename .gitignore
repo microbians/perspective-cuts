@@ -7,3 +7,12 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 *.shortcut
+
+# macOS folder icon resource forks
+Icon?
+Icon
+*Icon*
+
+# Local backups / archived versions
+_backup/
+_old/
