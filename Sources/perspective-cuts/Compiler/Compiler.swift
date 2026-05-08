@@ -96,7 +96,7 @@ struct Compiler: Sendable {
                 if case .dictionaryLiteral = value {
                     sourceAction = try buildDictionaryAction(from: value, outputMap: outputMap)
                 } else {
-                    sourceAction = try buildTextAction(from: value)
+                    sourceAction = try buildTextAction(from: value, outputMap: outputMap)
                 }
                 actions.append(sourceAction)
                 actions.append(buildAction(
@@ -513,8 +513,8 @@ struct Compiler: Sendable {
         )
     }
 
-    private func buildTextAction(from expression: Expression) throws -> [String: Any] {
-        let value = try expressionToValue(expression)
+    private func buildTextAction(from expression: Expression, outputMap: [String: OutputRef] = [:]) throws -> [String: Any] {
+        let value = try expressionToValueWithOutputMap(expression, outputMap: outputMap)
         let uuid = UUID().uuidString
         return buildAction(
             identifier: "is.workflow.actions.gettext",
