@@ -92,9 +92,14 @@
       "description": "Append to a variable",
       "parameters": {
         "name": {
-          "type": "string",
+          "type": "plainString",
           "required": true,
           "key": "WFVariableName"
+        },
+        "input": {
+          "type": "variable",
+          "required": true,
+          "key": "WFInput"
         }
       }
     },
