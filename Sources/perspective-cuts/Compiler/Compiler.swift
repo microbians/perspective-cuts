@@ -522,6 +522,52 @@ struct Compiler: Sendable {
         )
     }
 
+    /// Build the inner Value dict for a WFPropertyVariableAggrandizement
+    /// reference (`song.Title`, `currentSong.AlbumArtwork`, …).
+    ///
+    /// Apple's plist wants the property name spelled the same way it
+    /// shows up in the Shortcuts.app picker — including spaces (e.g.
+    /// "Album Artwork", not "AlbumArtwork"). camelCase identifiers are
+    /// expanded to title case so users can write `song.AlbumArtwork`
+    /// and still produce the canonical "Album Artwork" string.
+    private func buildAggrandizementValue(base: String, property: String, outputMap: [String: OutputRef]) -> [String: Any] {
+        let normalised = Compiler.deCamelCase(property)
+        let aggrandizements: [[String: Any]] = [[
+            "PropertyName": normalised,
+            "PropertyUserInfo": normalised.lowercased().replacingOccurrences(of: " ", with: ""),
+            "Type": "WFPropertyVariableAggrandizement"
+        ]]
+        var inner: [String: Any] = ["Aggrandizements": aggrandizements]
+        if let ref = outputMap[base] {
+            inner["OutputName"] = ref.name
+            inner["OutputUUID"] = ref.uuid
+            inner["Type"] = "ActionOutput"
+        } else {
+            inner["VariableName"] = base
+            inner["Type"] = "Variable"
+        }
+        return inner
+    }
+
+    /// Insert a space before each uppercase letter that follows a
+    /// lowercase letter or digit, so "AlbumArtwork" -> "Album Artwork"
+    /// and "Track2Artist" -> "Track2 Artist" (a property already
+    /// containing a space, like "Album Artwork" verbatim, is returned
+    /// unchanged because the space breaks the run).
+    static func deCamelCase(_ s: String) -> String {
+        if s.contains(" ") { return s }
+        var result = ""
+        var prev: Character? = nil
+        for ch in s {
+            if let p = prev, ch.isUppercase, (p.isLowercase || p.isNumber) {
+                result.append(" ")
+            }
+            result.append(ch)
+            prev = ch
+        }
+        return result
+    }
+
     private func buildMagicVariable(outputOf action: [String: Any]) -> [String: Any] {
         let params = action["WFWorkflowActionParameters"] as? [String: Any] ?? [:]
         let uuid = params["UUID"] as? String ?? UUID().uuidString
@@ -594,29 +640,8 @@ struct Compiler: Sendable {
                 "WFSerializationType": "WFTextTokenAttachment"
             ] as [String: Any]
         case .propertyAccess(let base, let property):
-            // Apple's WFPropertyVariableAggrandizement: extract a named
-            // property from a media/file/contact reference inline,
-            // without inserting a separate Get Details Of action.
-            //
-            // Mirrors the encoding seen in Apple's own gallery
-            // shortcuts (e.g. "Music to YouTube" reads
-            // currentSong.Title and currentSong.Artist this way).
-            let aggrandizements: [[String: Any]] = [[
-                "PropertyName": property,
-                "PropertyUserInfo": property.lowercased(),
-                "Type": "WFPropertyVariableAggrandizement"
-            ]]
-            var inner: [String: Any] = ["Aggrandizements": aggrandizements]
-            if let ref = outputMap[base] {
-                inner["OutputName"] = ref.name
-                inner["OutputUUID"] = ref.uuid
-                inner["Type"] = "ActionOutput"
-            } else {
-                inner["VariableName"] = base
-                inner["Type"] = "Variable"
-            }
             return [
-                "Value": inner,
+                "Value": buildAggrandizementValue(base: base, property: property, outputMap: outputMap),
                 "WFSerializationType": "WFTextTokenAttachment"
             ] as [String: Any]
         case .interpolatedString(let parts):
@@ -637,22 +662,9 @@ struct Compiler: Sendable {
                        name.distance(from: dotIdx, to: name.endIndex) > 1 {
                         let base = String(name[..<dotIdx])
                         let property = String(name[name.index(after: dotIdx)...])
-                        var inner: [String: Any] = [
-                            "Aggrandizements": [[
-                                "PropertyName": property,
-                                "PropertyUserInfo": property.lowercased(),
-                                "Type": "WFPropertyVariableAggrandizement"
-                            ]]
-                        ]
-                        if let ref = outputMap[base] {
-                            inner["OutputName"] = ref.name
-                            inner["OutputUUID"] = ref.uuid
-                            inner["Type"] = "ActionOutput"
-                        } else {
-                            inner["VariableName"] = base
-                            inner["Type"] = "Variable"
-                        }
-                        attachments[range] = inner
+                        attachments[range] = buildAggrandizementValue(
+                            base: base, property: property, outputMap: outputMap
+                        )
                     } else if name == "ShortcutInput" {
                         // The shortcut input magic variable embedded inside
                         // text uses the bare ExtensionInput token, same as
