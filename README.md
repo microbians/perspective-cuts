@@ -1,6 +1,13 @@
 # Perspective Cuts
 
-> **Fork notice.** This is a fork of [taylorarndt/perspective-cuts](https://github.com/taylorarndt/perspective-cuts) with extra metadata directives for configuring Share Sheet, Quick Actions, menu bar, widget, watch, and accepted input types directly from `.perspective` source. See [FORK-CHANGES.md](FORK-CHANGES.md) for the full list and examples.
+> **Fork notice.** This is a fork of [taylorarndt/perspective-cuts](https://github.com/taylorarndt/perspective-cuts) maintained by [@microbians](https://github.com/microbians). On top of upstream this fork adds:
+>
+> - Workflow surface metadata directives (`#sharesheet`, `#quickaction`, `#menubar`, `#widget`, `#watch`, `#input`) so a `.perspective` file fully describes where the shortcut shows up.
+> - `#noinput` directive with picker shorthands (`ask files`, `ask images`, `ask url`, …) for run-with-no-input behaviour.
+> - Raw glyph numbers in `#icon` and `compile --open` to launch Shortcuts.app after signing.
+> - Bug fixes: Magic Variables on raw `is.workflow.actions.*` calls, plain-string serialisation of known scalar plist keys, `ShortcutInput` inside string interpolation.
+>
+> See [FORK-CHANGES.md](FORK-CHANGES.md) for the full list with examples and implementation notes.
 
 A text-based language for writing Apple Shortcuts. Write code, compile it, get a shortcut. No dragging blocks. No clicking menus. Just text.
 

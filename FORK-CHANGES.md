@@ -24,7 +24,27 @@ settings had to be configured manually in the Shortcuts app after import.
 | `#menubar: true\|false` | Adds `MenuBar` to `WFWorkflowTypes` | `false` |
 | `#widget: true\|false` | Toggles `NCWidget` in `WFWorkflowTypes` | `true` |
 | `#watch: true\|false` | Toggles `WatchKit` in `WFWorkflowTypes` | `true` |
-| `#noinput: continue\|ask\|clipboard\|cancel` | Sets `WFWorkflowNoInputBehavior` (what to do when run without input) | not set |
+| `#noinput: continue\|ask [<type>]\|clipboard\|cancel` | Sets `WFWorkflowNoInputBehavior` (what to do when run without input) | not set |
+
+#### `#noinput: ask <type>` picker shorthands
+
+The bare `ask` form prompts the user to pick anything. A second token
+selects the content-type picker Shortcuts.app presents:
+
+| Form | Picker |
+|---|---|
+| `#noinput: ask files` | file picker |
+| `#noinput: ask images` | photo picker |
+| `#noinput: ask media` | media picker |
+| `#noinput: ask url` | URL prompt |
+| `#noinput: ask text` | text prompt |
+| `#noinput: ask date` | date picker |
+| `#noinput: ask number` | number prompt |
+| `#noinput: ask contact` | contact picker |
+
+Maps to `WFWorkflowNoInputBehaviorAskForInput` with
+`Parameters.ItemClass` and `Parameters.SerializedParameters.WFPickingMode`
+set per Apple's expected values.
 
 When `#sharesheet` or `#quickaction` is enabled, the compiler also sets
 `WFWorkflowHasShortcutInputVariables` to `true` automatically.
@@ -37,6 +57,7 @@ Multiple tokens may be combined separated by commas or spaces. Special tokens
 | Token | Maps to |
 |---|---|
 | `url` | `WFURLContentItem`, `WFSafariWebPageContentItem` |
+| `webpage` | `WFSafariWebPageContentItem` (Safari pages only) |
 | `text` | `WFStringContentItem`, `WFRichTextContentItem` |
 | `string` | `WFStringContentItem` |
 | `richtext` | `WFRichTextContentItem` |
@@ -100,6 +121,24 @@ those fields with the wrong widget.
 Fix: `Compiler.appleBuiltinPlainKeys` lists the parameter labels that
 must be emitted as plain values when the action is a raw `is.workflow.actions.*`
 call without a registry entry.
+
+The list currently includes: `WFVariableName`, `WFInputVariable`, `Shell`,
+`InputMode`, `Script`, `WFTextActionText`, `WFNotificationActionTitle`,
+`WFContentItemPropertyName`.
+
+### `ShortcutInput` inside string interpolation
+
+`ShortcutInput` referenced inside an interpolated string (e.g.
+`"\(ShortcutInput)"` as a notification body) now serialises as the
+`ExtensionInput` token, not as a regular named-variable reference.
+This was already correct for bare references; this commit aligns
+interpolation with the same behaviour.
+
+### Raw glyph numbers in `#icon`
+
+`#icon: <number>` now accepts a raw `ZGLYPHNUMBER` integer in addition
+to the named glyphs, useful when targeting a specific SF Symbol that
+doesn't have a friendly alias yet.
 
 ---
 
