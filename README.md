@@ -5,7 +5,9 @@
 > - Workflow surface metadata directives (`#sharesheet`, `#quickaction`, `#menubar`, `#widget`, `#watch`, `#input`) so a `.perspective` file fully describes where the shortcut shows up.
 > - `#noinput` directive with picker shorthands (`ask files`, `ask images`, `ask url`, …) for run-with-no-input behaviour.
 > - Raw glyph numbers in `#icon` and `compile --open` to launch Shortcuts.app after signing.
-> - Bug fixes: Magic Variables on raw `is.workflow.actions.*` calls, plain-string serialisation of known scalar plist keys, `ShortcutInput` inside string interpolation.
+> - Property-access syntax (`song.Title`) compiling to `WFPropertyVariableAggrandizement` so a single line replaces a Get Details Of action chain.
+> - New `searchWeb` built-in action with `destination` shorthand for Google/YouTube/DuckDuckGo/Bing.
+> - Bug fixes: Magic Variables on raw `is.workflow.actions.*` calls, `let X = Y` losing action-output references, plain-string serialisation of known scalar plist keys, `ShortcutInput` inside string interpolation.
 >
 > See [FORK-CHANGES.md](FORK-CHANGES.md) for the full list with examples and implementation notes.
 

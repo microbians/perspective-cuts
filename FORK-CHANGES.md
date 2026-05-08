@@ -140,6 +140,63 @@ interpolation with the same behaviour.
 to the named glyphs, useful when targeting a specific SF Symbol that
 doesn't have a friendly alias yet.
 
+### `let X = Y` lost references to action outputs
+
+A `let X = Y` (or any non-dictionary variable declaration whose right
+hand side is a reference) was emitting a Get Text action whose body
+resolved `Y` against an empty output map, so references to action
+outputs ended up serialised as plain `Variable` lookups. Shortcuts.app
+then could not find the named variable — there is no Set Variable for
+it, only a `CustomOutputName` on the producing action — and the field
+came up empty at runtime.
+
+Fix: thread the caller's `outputMap` through `buildTextAction` so any
+reference to a previously named action output is emitted as
+`Type: ActionOutput` with the correct `OutputUUID`.
+
+---
+
+## Property access syntax (inline aggrandizement)
+
+Apple's gallery shortcuts (e.g. *Music to YouTube*) read properties
+inline off a media/file/contact reference by attaching a
+`WFPropertyVariableAggrandizement` decorator to the variable, instead
+of inserting a separate Get Details Of action. This produces a leaner
+plist and is the only form Shortcuts.app's iTunes media engine
+resolves correctly when the source is `Get Current Song`.
+
+Same affordance is now available in `.perspective`:
+
+```
+getCurrentSong() -> song
+searchWeb(
+    query: "\(song.Title) \(song.Artist)",
+    destination: "YouTube"
+)
+```
+
+`song.Title` and `song.Artist` parse as a new `propertyAccess`
+expression and emit the canonical aggrandizement attachment. Both
+bare references (`var.Property`) and references inside string
+interpolation (`\(var.Property)`) are supported. Falls back to a plain
+`Variable` reference when the base isn't in the output map.
+
+---
+
+## New built-in actions
+
+### `searchWeb`
+
+Wraps `is.workflow.actions.searchweb` with two parameters:
+
+| Parameter | Type | Plist key |
+|---|---|---|
+| `query` (required) | string | `WFInputText` |
+| `destination` (optional) | plainString | `WFSearchWebDestination` |
+
+Destination accepts the same string values Shortcuts.app exposes
+(`"Google"`, `"YouTube"`, `"DuckDuckGo"`, `"Bing"`, …).
+
 ---
 
 ## CLI
