@@ -593,6 +593,32 @@ struct Compiler: Sendable {
                 ],
                 "WFSerializationType": "WFTextTokenAttachment"
             ] as [String: Any]
+        case .propertyAccess(let base, let property):
+            // Apple's WFPropertyVariableAggrandizement: extract a named
+            // property from a media/file/contact reference inline,
+            // without inserting a separate Get Details Of action.
+            //
+            // Mirrors the encoding seen in Apple's own gallery
+            // shortcuts (e.g. "Music to YouTube" reads
+            // currentSong.Title and currentSong.Artist this way).
+            let aggrandizements: [[String: Any]] = [[
+                "PropertyName": property,
+                "PropertyUserInfo": property.lowercased(),
+                "Type": "WFPropertyVariableAggrandizement"
+            ]]
+            var inner: [String: Any] = ["Aggrandizements": aggrandizements]
+            if let ref = outputMap[base] {
+                inner["OutputName"] = ref.name
+                inner["OutputUUID"] = ref.uuid
+                inner["Type"] = "ActionOutput"
+            } else {
+                inner["VariableName"] = base
+                inner["Type"] = "Variable"
+            }
+            return [
+                "Value": inner,
+                "WFSerializationType": "WFTextTokenAttachment"
+            ] as [String: Any]
         case .interpolatedString(let parts):
             var text = ""
             var attachments: [String: Any] = [:]
@@ -604,7 +630,30 @@ struct Compiler: Sendable {
                     let pos = text.count
                     text += "\u{FFFC}"
                     let range = "{\(pos), 1}"
-                    if name == "ShortcutInput" {
+                    // Property access inside interpolation: `\(song.Title)`
+                    // emits the same WFPropertyVariableAggrandizement wrapper
+                    // as a bare `song.Title` reference.
+                    if let dotIdx = name.firstIndex(of: "."),
+                       name.distance(from: dotIdx, to: name.endIndex) > 1 {
+                        let base = String(name[..<dotIdx])
+                        let property = String(name[name.index(after: dotIdx)...])
+                        var inner: [String: Any] = [
+                            "Aggrandizements": [[
+                                "PropertyName": property,
+                                "PropertyUserInfo": property.lowercased(),
+                                "Type": "WFPropertyVariableAggrandizement"
+                            ]]
+                        ]
+                        if let ref = outputMap[base] {
+                            inner["OutputName"] = ref.name
+                            inner["OutputUUID"] = ref.uuid
+                            inner["Type"] = "ActionOutput"
+                        } else {
+                            inner["VariableName"] = base
+                            inner["Type"] = "Variable"
+                        }
+                        attachments[range] = inner
+                    } else if name == "ShortcutInput" {
                         // The shortcut input magic variable embedded inside
                         // text uses the bare ExtensionInput token, same as
                         // when it appears as a standalone field.

@@ -30,6 +30,7 @@ enum Expression: Sendable {
     case numberLiteral(Double)
     case boolLiteral(Bool)
     case variableReference(String)
+    case propertyAccess(base: String, property: String)
     case interpolatedString(parts: [StringPart])
     case dictionaryLiteral([DictionaryEntry])
 }

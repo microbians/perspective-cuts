@@ -391,6 +391,15 @@ struct Parser: Sendable {
             return .boolLiteral(value)
         case .identifier(let name):
             pos += 1
+            // Property access: `varName.PropertyName` for aggrandizement
+            // (e.g. song.Title to extract a property from a Get Current
+            // Song / file / contact reference without an extra action).
+            if pos + 1 < tokens.count,
+               case .dot = tokens[pos].kind,
+               case .identifier(let prop) = tokens[pos + 1].kind {
+                pos += 2
+                return .propertyAccess(base: name, property: prop)
+            }
             return .variableReference(name)
         case .leftBrace:
             // Safe: block-level `{` is always consumed by statement parsers (if, repeat,
