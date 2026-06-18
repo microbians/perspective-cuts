@@ -181,6 +181,51 @@ bare references (`var.Property`) and references inside string
 interpolation (`\(var.Property)`) are supported. Falls back to a plain
 `Variable` reference when the base isn't in the output map.
 
+Property accesses are also valid as the left-hand side of a condition
+(see *Conditions* below), e.g. `if song.Title hasNoValue { ... }`.
+
+camelCase property names are expanded to Title Case for the
+aggrandizement key, so `song.albumArtist` resolves to the
+`Album Artist` property Shortcuts expects.
+
+---
+
+## Conditions
+
+### `hasValue` / `hasNoValue` (no-operand operators)
+
+Two new condition operators map to Shortcuts' "has any value" /
+"does not have any value" checks, which take **no** comparison operand:
+
+```
+getCurrentSong() -> song
+if song.Title hasNoValue {
+    // macOS: Get Current Song came back empty — fall back
+} else {
+    // iOS: use the native song properties
+}
+```
+
+| Operator | `WFCondition` | Shortcuts label |
+|---|---|---|
+| `hasValue` | `100` | has any value |
+| `hasNoValue` | `101` | does not have any value |
+
+No `WFConditionalActionString` is emitted (there is nothing to compare
+against). The left-hand side may be a variable reference, an action
+output, or a property access.
+
+### Property access as a condition input
+
+A condition's left-hand side is always wrapped as
+`{ Type: "Variable", Variable: { Value: <inner>, WFSerializationType:
+"WFTextTokenAttachment" } }`. The `inner` value now also accepts a
+property aggrandizement (e.g. `song.Title`), so conditions can branch
+directly on an inline property without a separate Get Details Of action.
+A non-wrapped payload made Shortcuts.app show an empty/unbound
+condition, so every supported left-hand side funnels through the same
+`wrap()` helper.
+
 ---
 
 ## New built-in actions
@@ -196,6 +241,51 @@ Wraps `is.workflow.actions.searchweb` with two parameters:
 
 Destination accepts the same string values Shortcuts.app exposes
 (`"Google"`, `"YouTube"`, `"DuckDuckGo"`, `"Bing"`, …).
+
+### `getValueForKey`
+
+Wraps `is.workflow.actions.getvalueforkey`:
+
+| Parameter | Type | Plist key |
+|---|---|---|
+| `key` (required) | plainString | `WFDictionaryKey` |
+| `input` (required) | variable | `WFInput` |
+
+### `setItemName`
+
+Wraps `is.workflow.actions.setitemname`:
+
+| Parameter | Type | Plist key |
+|---|---|---|
+| `name` (required) | plainString | `WFName` |
+| `input` (required) | variable | `WFInput` |
+
+---
+
+## Run AppleScript (native, no shell)
+
+To run AppleScript without wrapping `osascript` inside a Run Shell Script
+action, call the native action directly:
+
+```
+is.workflow.actions.runapplescript(
+    Script: "on run {input, parameters}\n\t...\n\treturn x\nend run"
+) -> result
+```
+
+The script body goes in the **`Script`** parameter (Shortcuts.app
+silently ignores `Source` and shows its default placeholder). `Script`
+is already a plain key, so the body is emitted verbatim. The handler
+must be a full `on run {input, parameters} ... end run`.
+
+---
+
+## Comment coalescing
+
+Consecutive `// ...` source lines are merged into a single Comment
+action (`WFCommentActionText` joined with newlines) instead of one
+Comment box per line. A blank line in the source breaks the run and
+starts a new Comment block.
 
 ---
 
