@@ -86,10 +86,25 @@ struct Compiler: Sendable {
                     noInputBehavior = try parseNoInputDirective(value: value, location: loc)
                 }
             case .comment(let text, _):
-                actions.append(buildAction(
-                    identifier: "is.workflow.actions.comment",
-                    parameters: ["WFCommentActionText": text]
-                ))
+                // Coalesce runs of `// ...` lines into a single Comment
+                // action so the editor doesn't show one box per line.
+                // A blank line in the source separates the runs (the
+                // parser drops the comment node, so when the previous
+                // action is no longer a comment we start a new block).
+                if let last = actions.last,
+                   (last["WFWorkflowActionIdentifier"] as? String) == "is.workflow.actions.comment",
+                   var params = last["WFWorkflowActionParameters"] as? [String: Any],
+                   let prevText = params["WFCommentActionText"] as? String {
+                    params["WFCommentActionText"] = prevText + "\n" + text
+                    var merged = last
+                    merged["WFWorkflowActionParameters"] = params
+                    actions[actions.count - 1] = merged
+                } else {
+                    actions.append(buildAction(
+                        identifier: "is.workflow.actions.comment",
+                        parameters: ["WFCommentActionText": text]
+                    ))
+                }
             case .variableDeclaration(let name, let value, _, _):
                 // Emit the appropriate action based on expression type
                 let sourceAction: [String: Any]
@@ -147,7 +162,7 @@ struct Compiler: Sendable {
                             let tkParam = toolKitParams?[label]
                             if tkParam?.isDynamicEntity == true || tkParam?.typeKind == 2 {
                                 // Dynamic entity: wrap as { value, title, subtitle }
-                                let plainVal = try expressionToPlainValue(value)
+                                let plainVal = try expressionToPlainValue(value, outputMap: outputMap)
                                 let strVal = "\(plainVal)"
                                 resolvedValue = [
                                     "value": strVal,
@@ -156,10 +171,10 @@ struct Compiler: Sendable {
                                 ] as [String: Any]
                             } else if tkParam?.typeKind == 3 || tkParam?.typeKind == 4 {
                                 // Static enum: use plain value
-                                resolvedValue = try expressionToPlainValue(value)
+                                resolvedValue = try expressionToPlainValue(value, outputMap: outputMap)
                             } else {
                                 // Primitives (string, int, bool, etc.): use plain values
-                                resolvedValue = try expressionToPlainValue(value)
+                                resolvedValue = try expressionToPlainValue(value, outputMap: outputMap)
                             }
                         } else {
                             // Built-in action — use ActionRegistry parameter definitions
@@ -185,13 +200,16 @@ struct Compiler: Sendable {
                                let intVal = valueMap[s] {
                                 resolvedValue = intVal
                             } else if let paramType = paramDef?.type, (paramType == "enum" || paramType == "boolean" || paramType == "plainString") {
-                                resolvedValue = try expressionToPlainValue(value)
+                                resolvedValue = try expressionToPlainValue(value, outputMap: outputMap)
                             } else if Compiler.appleBuiltinPlainKeys.contains(plistKey) {
                                 // Apple plist keys that must be plain strings
                                 // (variable names, shell choice, script body,
                                 // comment text, etc.), regardless of whether the
                                 // action came from the registry or a raw identifier.
-                                resolvedValue = try expressionToPlainValue(value)
+                                // Pass the outputMap so interpolated tokens inside
+                                // these fields (e.g. \(page.Name) in a Script body)
+                                // still resolve to ActionOutput, not bare Variable.
+                                resolvedValue = try expressionToPlainValue(value, outputMap: outputMap)
                             } else {
                                 resolvedValue = try expressionToValueWithOutputMap(value, outputMap: outputMap)
                             }
@@ -581,13 +599,19 @@ struct Compiler: Sendable {
         ]
     }
 
-    private func expressionToPlainValue(_ expr: Expression) throws -> Any {
+    private func expressionToPlainValue(_ expr: Expression, outputMap: [String: OutputRef] = [:]) throws -> Any {
         switch expr {
         case .stringLiteral(let s): return s
         case .numberLiteral(let n): return n == n.rounded() ? Int(n) : n
         case .boolLiteral(let b): return b
-        case .dictionaryLiteral: return try expressionToValue(expr)
-        default: return try expressionToValue(expr)
+        case .dictionaryLiteral: return try expressionToValueWithOutputMap(expr, outputMap: outputMap)
+        // An interpolated string (e.g. a shell Script body containing
+        // \(page.Name)) must carry the outputMap through so embedded
+        // references to a prior action's output serialise as ActionOutput,
+        // not as a bare Variable. Without the map, a token like `page`
+        // (the named output of an earlier action) is wrongly emitted with
+        // Type=Variable and the data link is broken.
+        default: return try expressionToValueWithOutputMap(expr, outputMap: outputMap)
         }
     }
 
@@ -726,27 +750,34 @@ struct Compiler: Sendable {
         // Conditionals use a nested format for WFInput:
         //   { Type: "Variable", Variable: { Value: { ... }, WFSerializationType: "WFTextTokenAttachment" } }
         func resolveInput(_ expr: Expression) throws -> Any {
-            if case .variableReference(let name) = expr {
-                let inner: [String: Any]
-                if let ref = outputMap[name] {
-                    inner = [
-                        "Value": [
-                            "OutputUUID": ref.uuid,
-                            "Type": "ActionOutput",
-                            "OutputName": ref.name
-                        ],
-                        "WFSerializationType": "WFTextTokenAttachment"
-                    ] as [String: Any]
-                } else {
-                    inner = [
-                        "Value": ["VariableName": name, "Type": "Variable"],
-                        "WFSerializationType": "WFTextTokenAttachment"
-                    ] as [String: Any]
-                }
-                return [
+            // The condition input is always wrapped as
+            //   { Type: "Variable", Variable: { Value: <inner>, WFSerializationType: "WFTextTokenAttachment" } }
+            // `inner` is the variable/output reference, optionally carrying a
+            // property Aggrandizement (e.g. `song.Title`). A plain attachment
+            // payload (no wrapper) makes Shortcuts.app show an empty/unbound
+            // condition, so every supported left-hand side funnels through here.
+            func wrap(_ value: [String: Any]) -> [String: Any] {
+                [
                     "Type": "Variable",
-                    "Variable": inner
-                ] as [String: Any]
+                    "Variable": [
+                        "Value": value,
+                        "WFSerializationType": "WFTextTokenAttachment"
+                    ] as [String: Any]
+                ]
+            }
+            if case .variableReference(let name) = expr {
+                if let ref = outputMap[name] {
+                    return wrap([
+                        "OutputUUID": ref.uuid,
+                        "Type": "ActionOutput",
+                        "OutputName": ref.name
+                    ])
+                } else {
+                    return wrap(["VariableName": name, "Type": "Variable"])
+                }
+            }
+            if case .propertyAccess(let base, let property) = expr {
+                return wrap(buildAggrandizementValue(base: base, property: property, outputMap: outputMap))
             }
             return try expressionToValueWithOutputMap(expr, outputMap: outputMap)
         }
@@ -772,6 +803,16 @@ struct Compiler: Sendable {
             params["WFInput"] = try resolveInput(left)
             params["WFCondition"] = 3 // less than
             params["WFConditionalActionString"] = try expressionToValueWithOutputMap(right, outputMap: outputMap)
+        case .hasValue(let left):
+            // "has any value" — no comparison operand (used to detect a
+            // non-empty action output, e.g. Get Current Song on iOS).
+            params["WFInput"] = try resolveInput(left)
+            params["WFCondition"] = 100
+        case .hasNoValue(let left):
+            // "does not have any value" — no comparison operand (used to
+            // detect the EMPTY Get Current Song result on macOS).
+            params["WFInput"] = try resolveInput(left)
+            params["WFCondition"] = 101
         }
     }
 
