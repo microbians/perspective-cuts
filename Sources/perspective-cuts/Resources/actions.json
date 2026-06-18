@@ -361,6 +361,38 @@
         }
       }
     },
+    "getValueForKey": {
+      "identifier": "is.workflow.actions.getvalueforkey",
+      "description": "Get a value for a dictionary key",
+      "parameters": {
+        "key": {
+          "type": "plainString",
+          "required": true,
+          "key": "WFDictionaryKey"
+        },
+        "input": {
+          "type": "variable",
+          "required": true,
+          "key": "WFInput"
+        }
+      }
+    },
+    "setItemName": {
+      "identifier": "is.workflow.actions.setitemname",
+      "description": "Set the name of an item (file, contents, etc.)",
+      "parameters": {
+        "name": {
+          "type": "plainString",
+          "required": true,
+          "key": "WFName"
+        },
+        "input": {
+          "type": "variable",
+          "required": true,
+          "key": "WFInput"
+        }
+      }
+    },
     "getItemFromList": {
       "identifier": "is.workflow.actions.getitemfromlist",
       "description": "Get an item from a list by index",

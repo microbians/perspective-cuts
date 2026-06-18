@@ -151,6 +151,8 @@ struct Lexer: Sendable {
                 case "func": .funcKeyword
                 case "return": .returnKeyword
                 case "contains": .containsKeyword
+                case "hasValue": .hasValueKeyword
+                case "hasNoValue": .hasNoValueKeyword
                 case "true": .boolLiteral(true)
                 case "false": .boolLiteral(false)
                 default: .identifier(word)

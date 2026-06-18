@@ -21,6 +21,8 @@ enum TokenKind: Sendable, Equatable {
     case funcKeyword            // func
     case returnKeyword          // return
     case containsKeyword        // contains
+    case hasValueKeyword        // hasValue   (Shortcuts: "has any value", no operand)
+    case hasNoValueKeyword      // hasNoValue (Shortcuts: "does not have any value", no operand)
 
     case identifier(String)     // action names, variable names
     case stringLiteral(String)  // "hello"

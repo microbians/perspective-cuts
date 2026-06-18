@@ -481,6 +481,12 @@ struct Parser: Sendable {
             pos += 1
             let right = try parseExpression(&pos)
             return .contains(left: left, right: right)
+        case .hasValueKeyword:
+            pos += 1
+            return .hasValue(left: left)
+        case .hasNoValueKeyword:
+            pos += 1
+            return .hasNoValue(left: left)
         default:
             throw ParserError(message: "Expected comparison operator", location: token.location)
         }

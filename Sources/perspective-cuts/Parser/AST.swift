@@ -46,4 +46,6 @@ enum Condition: Sendable {
     case contains(left: Expression, right: Expression)
     case greaterThan(left: Expression, right: Expression)
     case lessThan(left: Expression, right: Expression)
+    case hasValue(left: Expression)
+    case hasNoValue(left: Expression)
 }
